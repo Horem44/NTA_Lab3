@@ -16,6 +16,8 @@ export class NumericService {
     for (let i = 0; i < B; i++) {
       this.factorBase.push(this.primes[i]);
     }
+
+    console.log('f', this.factorBase);
   }
 
   calculateAlphaK(alpha: bigint, k: bigint, n: bigint) {
@@ -145,44 +147,70 @@ export class NumericService {
     return result;
   }
 
-  solveLinearSystem(
-    coefficients: bigint[][],
-    constants: bigint[],
-    mod: bigint
-  ): bigint[] {
+  solveSystemOfEquations(coefficients: bigint[][], constants: bigint[], modulus: bigint): bigint[] | null {
     const n = coefficients.length;
-    const augmentedMatrix: bigint[][] = [];
-
+  
+    const A: bigint[][] = [];
+    const B: bigint[] = [];
     for (let i = 0; i < n; i++) {
-      augmentedMatrix.push([...coefficients[i], constants[i]]);
+      A[i] = [...coefficients[i]];
+      B[i] = constants[i];
     }
-
-    for (let i = 0; i < n - 1; i++) {
+  
+    for (let i = 0; i < n; i++) {
+      let pivotRow = i;
       for (let j = i + 1; j < n; j++) {
-        const ratio = augmentedMatrix[j][i] / augmentedMatrix[i][i];
-
-        for (let k = i; k < n + 1; k++) {
-          augmentedMatrix[j][k] -= ratio * augmentedMatrix[i][k];
+        if (this.absBigInt(A[j][i]) > this.absBigInt(A[pivotRow][i])) {
+          pivotRow = j;
         }
       }
-    }
-
-    const solution: bigint[] = new Array(n).fill(0n);
-
-    solution[n - 1] = augmentedMatrix[n - 1][n] / augmentedMatrix[n - 1][n - 1];
-
-    for (let i = n - 2; i >= 0; i--) {
-      let sum = BigInt(0);
-
-      for (let j = i + 1; j < n; j++) {
-        sum += augmentedMatrix[i][j] * solution[j];
+  
+      if (A[pivotRow][i] === BigInt(0)) {
+        return null;
       }
-
-      solution[i] = (augmentedMatrix[i][n] - sum) / augmentedMatrix[i][i];
+  
+      if (pivotRow !== i) {
+        [A[i], A[pivotRow]] = [A[pivotRow], A[i]];
+        [B[i], B[pivotRow]] = [B[pivotRow], B[i]];
+      }
+  
+      const modInverseVal = this.modInverse(A[i][i], modulus);
+      for (let j = i + 1; j < n; j++) {
+        const ratio = (A[j][i] * modInverseVal) % modulus;
+        for (let k = i; k < n; k++) {
+          A[j][k] = (A[j][k] - ratio * A[i][k] + modulus) % modulus;
+        }
+        B[j] = (B[j] - ratio * B[i] + modulus) % modulus;
+      }
     }
-
-    return solution.map((element) => element % mod);
+  
+    const solution: bigint[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      let sum = BigInt(0);
+      for (let j = i + 1; j < n; j++) {
+        sum = (sum + A[i][j] * solution[j] + modulus) % modulus;
+      }
+      solution[i] = ((B[i] - sum) * this.modInverse(A[i][i], modulus) + modulus) % modulus;
+    }
+  
+    return solution;
   }
+  
+  modInverse(a: bigint, m: bigint): bigint {
+    a = (a % m + m) % m;
+    for (let x = BigInt(1); x < m; x++) {
+      if ((a * x) % m === BigInt(1)) {
+        return x;
+      }
+    }
+    return BigInt(1);
+  }
+  
+  absBigInt(n: bigint): bigint {
+    const zero = BigInt(0);
+    return n < zero ? -n : n;
+  }
+  
 
   private sqrt(n: bigint): bigint {
     if (n < 2n) {
