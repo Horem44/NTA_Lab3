@@ -4,9 +4,23 @@ export class DiscreteLogarithmService {
   constructor(private readonly numericService: NumericService) {}
 
   indexCalculus(a: bigint, b: bigint, n: bigint) {
-    const system = this.numericService.buildEquationSystem(a, n);
+    this.numericService.createFactorBase(n);
 
-    console.log(system);
+    let system = this.numericService.buildEquationSystem(a, n);
+
+    let maxVectorLength = 0;
+
+    system.coefficients.forEach((coef) => {
+      if (coef.length > maxVectorLength) {
+        maxVectorLength = coef.length;
+      }
+    });
+
+    system.coefficients.forEach((coef) => {
+      while (coef.length < maxVectorLength) {
+        coef.push(0n);
+      }
+    });
 
     const solution = this.numericService.solveLinearSystem(
       system.coefficients,

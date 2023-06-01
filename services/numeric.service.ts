@@ -19,11 +19,15 @@ export class NumericService {
   }
 
   calculateAlphaK(alpha: bigint, k: bigint, n: bigint) {
-    return this.moduloHornerScheme(alpha, k, n - 1n);
+    return this.moduloHornerScheme(alpha, k, n);
   }
 
   isSmooth(n: bigint) {
     const decomposition = this.numberDecomposition(n);
+
+    if (decomposition.length === 0) {
+      return false;
+    }
 
     return decomposition.every((el) => this.factorBase.includes(el.divisor));
   }
@@ -71,23 +75,33 @@ export class NumericService {
     const k = BigInt(Math.floor(Math.random() * Number(n - 1n)));
     const alphaK = this.calculateAlphaK(alpha, k, n);
     const isAlphaKSmooth = this.isSmooth(alphaK);
-
+    
     if (!isAlphaKSmooth) {
-      return;
+      return null;
     }
 
-    const numberToDecompose = this.numberDecomposition((alphaK % n) - 1n);
+    const numberToDecompose = this.numberDecomposition(alphaK);
+
+    const greatestIndex = this.factorBase.indexOf(
+      numberToDecompose[numberToDecompose.length - 1].divisor
+    );
 
     const result: any = [];
-    const temp: bigint[] = [];
+    let temp: bigint[] = [];
 
-    numberToDecompose.forEach((elem, index) => {
-      if(this.factorBase.indexOf(elem.divisor) !== -1){
-        temp[this.factorBase.indexOf(elem.divisor)] = elem.power;
+    const indexes = numberToDecompose.map((el) =>
+      ({index: this.factorBase.indexOf(el.divisor), power: el.power})
+    );
+
+    for (let i = 0; i <= greatestIndex; i++) {
+      const existingIndex = indexes.find(el => el.index === i);
+
+      if (existingIndex) {
+        temp[i] = existingIndex.power;
       }else{
-        temp[index] = 0n;
+        temp[i] = 0n;
       }
-    });
+    }
 
     result.push(temp);
     result.push(k);
@@ -95,15 +109,15 @@ export class NumericService {
     return result;
   }
 
-  buildEquationSystem(alpha: bigint, n: bigint){
+  buildEquationSystem(alpha: bigint, n: bigint) {
     const equationsAmount = this.factorBase.length + 15;
     const coefficients: bigint[][] = [];
-    const constants = [];
-    
-    while(coefficients.length < equationsAmount){
+    const constants: bigint[] = [];
+
+    while (coefficients.length < equationsAmount) {
       const equation = this.createEquation(alpha, n);
 
-      if(equation){
+      if (equation) {
         coefficients.push(equation[0]);
         constants.push(equation[1]);
       }
@@ -111,8 +125,8 @@ export class NumericService {
 
     return {
       coefficients,
-      constants
-    }
+      constants,
+    };
   }
 
   moduloHornerScheme(base: bigint, power: bigint, modulo: bigint): bigint {
@@ -131,7 +145,11 @@ export class NumericService {
     return result;
   }
 
-  solveLinearSystem(coefficients: bigint[][], constants: bigint[], mod: bigint): bigint[] {
+  solveLinearSystem(
+    coefficients: bigint[][],
+    constants: bigint[],
+    mod: bigint
+  ): bigint[] {
     const n = coefficients.length;
     const augmentedMatrix: bigint[][] = [];
 
@@ -163,7 +181,7 @@ export class NumericService {
       solution[i] = (augmentedMatrix[i][n] - sum) / augmentedMatrix[i][i];
     }
 
-    return solution.map(element => element % mod);
+    return solution.map((element) => element % mod);
   }
 
   private sqrt(n: bigint): bigint {

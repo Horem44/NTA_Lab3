@@ -8,5 +8,5 @@ primesService.primes$.subscribe((primes) => {
   const numericService = new NumericService(primes);
   const discreteLogarithmService = new DiscreteLogarithmService(numericService);
 
-  console.log(discreteLogarithmService.indexCalculus(3n, 15n, 43n));
+  console.log(discreteLogarithmService.indexCalculus(3n, 5n, 17n));
 });
