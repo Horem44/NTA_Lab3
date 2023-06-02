@@ -24,35 +24,35 @@ export class DiscreteLogarithmService {
 
     console.log(system.coefficients.length === system.constants.length);
 
-    // const solution = this.numericService.solveLinearSystem(
-    //   system.coefficients,
-    //   system.constants,
-    //   n - 1n
-    // );
+    const solution = this.numericService.solveLinearSystem(
+      system.coefficients,
+      system.constants,
+      n - 1n
+    );
 
-    // console.log(solution);
+    console.log(solution);
 
-    // if(!solution){
-    //   return;
-    // }
+    if(!solution){
+      return;
+    }
 
-    // for (let i = 0; i < n - 1n; i++) {
-    //   const numToCheck = (b * a ** BigInt(i)) % n;
+    for (let i = 0; i < n - 1n; i++) {
+      const numToCheck = (b * a ** BigInt(i)) % n;
 
-    //   if (this.numericService.isSmooth(numToCheck)) {
-    //     const decomposition =
-    //       this.numericService.numberDecomposition(numToCheck);
+      if (this.numericService.isSmooth(numToCheck)) {
+        const decomposition =
+          this.numericService.numberDecomposition(numToCheck);
 
-    //     const sum = decomposition.reduce(
-    //       (acc, el) =>
-    //         acc +
-    //         el.power *
-    //           solution[this.numericService.factorBase.indexOf(el.divisor)],
-    //       0n
-    //     );
+        const sum = decomposition.reduce(
+          (acc, el) =>
+            acc +
+            el.power *
+              solution[this.numericService.factorBase.indexOf(el.divisor)],
+          0n
+        );
 
-    //     return (sum - BigInt(i)) % (n - 1n);
-    //   }
-    // }
+        return (sum - BigInt(i)) % (n - 1n);
+      }
+    }
   }
 }

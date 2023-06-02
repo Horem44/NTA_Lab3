@@ -17,7 +17,7 @@ export class NumericService {
       this.factorBase.push(this.primes[i]);
     }
 
-    console.log('f', this.factorBase);
+    console.log("f", this.factorBase);
   }
 
   calculateAlphaK(alpha: bigint, k: bigint, n: bigint) {
@@ -77,7 +77,7 @@ export class NumericService {
     const k = BigInt(Math.floor(Math.random() * Number(n - 1n)));
     const alphaK = this.calculateAlphaK(alpha, k, n);
     const isAlphaKSmooth = this.isSmooth(alphaK);
-    
+
     if (!isAlphaKSmooth) {
       return null;
     }
@@ -91,16 +91,17 @@ export class NumericService {
     const result: any = [];
     let temp: bigint[] = [];
 
-    const indexes = numberToDecompose.map((el) =>
-      ({index: this.factorBase.indexOf(el.divisor), power: el.power})
-    );
+    const indexes = numberToDecompose.map((el) => ({
+      index: this.factorBase.indexOf(el.divisor),
+      power: el.power,
+    }));
 
     for (let i = 0; i <= greatestIndex; i++) {
-      const existingIndex = indexes.find(el => el.index === i);
+      const existingIndex = indexes.find((el) => el.index === i);
 
       if (existingIndex) {
         temp[i] = existingIndex.power;
-      }else{
+      } else {
         temp[i] = 0n;
       }
     }
@@ -147,16 +148,20 @@ export class NumericService {
     return result;
   }
 
-  solveSystemOfEquations(coefficients: bigint[][], constants: bigint[], modulus: bigint): bigint[] | null {
+  solveLinearSystem(
+    coefficients: bigint[][],
+    constants: bigint[],
+    modulus: bigint
+  ): bigint[] | null {
     const n = coefficients.length;
-  
+
     const A: bigint[][] = [];
     const B: bigint[] = [];
     for (let i = 0; i < n; i++) {
       A[i] = [...coefficients[i]];
       B[i] = constants[i];
     }
-  
+
     for (let i = 0; i < n; i++) {
       let pivotRow = i;
       for (let j = i + 1; j < n; j++) {
@@ -164,16 +169,16 @@ export class NumericService {
           pivotRow = j;
         }
       }
-  
+
       if (A[pivotRow][i] === BigInt(0)) {
         return null;
       }
-  
+
       if (pivotRow !== i) {
         [A[i], A[pivotRow]] = [A[pivotRow], A[i]];
         [B[i], B[pivotRow]] = [B[pivotRow], B[i]];
       }
-  
+
       const modInverseVal = this.modInverse(A[i][i], modulus);
       for (let j = i + 1; j < n; j++) {
         const ratio = (A[j][i] * modInverseVal) % modulus;
@@ -183,21 +188,22 @@ export class NumericService {
         B[j] = (B[j] - ratio * B[i] + modulus) % modulus;
       }
     }
-  
+
     const solution: bigint[] = [];
     for (let i = n - 1; i >= 0; i--) {
       let sum = BigInt(0);
       for (let j = i + 1; j < n; j++) {
         sum = (sum + A[i][j] * solution[j] + modulus) % modulus;
       }
-      solution[i] = ((B[i] - sum) * this.modInverse(A[i][i], modulus) + modulus) % modulus;
+      solution[i] =
+        ((B[i] - sum) * this.modInverse(A[i][i], modulus) + modulus) % modulus;
     }
-  
+
     return solution;
   }
-  
+
   modInverse(a: bigint, m: bigint): bigint {
-    a = (a % m + m) % m;
+    a = ((a % m) + m) % m;
     for (let x = BigInt(1); x < m; x++) {
       if ((a * x) % m === BigInt(1)) {
         return x;
@@ -205,12 +211,11 @@ export class NumericService {
     }
     return BigInt(1);
   }
-  
+
   absBigInt(n: bigint): bigint {
     const zero = BigInt(0);
     return n < zero ? -n : n;
   }
-  
 
   private sqrt(n: bigint): bigint {
     if (n < 2n) {
@@ -247,4 +252,75 @@ export class NumericService {
   private log(n: bigint) {
     return BigInt(n.toString(2).length);
   }
+
+  workerFunction(alpha: bigint, n: bigint) {
+    const equation = this.createEquation(alpha, n);
+
+    if (equation) {
+      return {
+        coefficients: equation[0],
+        constants: equation[1],
+      };
+    }
+
+    return null;
+  }
+
+  buildEquationSystemParallel(alpha: bigint, n: bigint) {
+    const equationsAmount = this.factorBase.length + 15;
+    const threads = 8; 
+    const equationsPerThread = Math.ceil(equationsAmount / threads);
+    
+    return new Promise((resolve, reject) => {
+      const equationData = {
+        alpha,
+        n
+      };
+      
+      const workerPromises = [];
+
+      for (let i = 0; i < threads; i++) {
+        //@ts-ignore
+        const worker = new Worker(this.workerFunction);
+        
+        workerPromises.push(new Promise((resolve, reject) => {
+          //@ts-ignore
+          worker.on('message', resolve(equationData));
+          //@ts-ignore
+          worker.on('error', reject);
+          //@ts-ignore
+          worker.on('exit', (code) => {
+            if (code !== 0) {
+              reject(new Error(`Worker stopped with exit code ${code}`));
+            }
+          });
+        }));
+        
+        worker.postMessage(equationData);
+      }
+      
+      Promise.all(workerPromises)
+        .then(results => {
+          let coefficients: bigint[][] = [];
+          let constants: bigint[] = [];
+          
+          for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            
+            if (result) {
+              //@ts-ignore
+              coefficients = coefficients.concat(result.coefficients);
+              //@ts-ignore
+              constants = constants.concat(result.constants);
+            }
+          }
+          
+          resolve({
+            coefficients,
+            constants
+          });
+        })
+        .catch(reject);
+    });
+  }  
 }
